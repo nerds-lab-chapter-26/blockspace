@@ -1,8 +1,8 @@
-# blockspace
+# space2space
 
 Open-source, backend-agnostic building blocks for Notion-style editing in React.
 
-Most block editors either lock you into a hosted API, or hand you a raw rich-text engine and leave you to build block identity, persistence, and custom blocks yourself. Blockspace is the missing layer in between: a typed block schema, editing commands, and a persistence contract you can wire up to whatever backend you already use — your own database, a REST API, or nothing at all.
+Most block editors either lock you into a hosted API, or hand you a raw rich-text engine and leave you to build block identity, persistence, and custom blocks yourself. space2space is the missing layer in between: a typed block schema, editing commands, and a persistence contract you can wire up to whatever backend you already use — your own database, a REST API, or nothing at all.
 
 You own the data. You choose the backend. You control the UI.
 
@@ -30,7 +30,7 @@ Opens a live playground with the editor and the read-only renderer side by side,
 ## Install
 
 ```bash
-npm install blockspace
+npm install space2space
 ```
 
 ## Quick example
@@ -41,7 +41,7 @@ import {
   BlockRenderer,
   createDefaultRegistry,
   createLocalStorageAdapter,
-} from "blockspace";
+} from "space2space";
 
 const registry = createDefaultRegistry();
 const adapter = createLocalStorageAdapter({ keyPrefix: "my-app:" });
@@ -72,7 +72,7 @@ A handful of open-source editors already exist. What's missing, consistently, is
 - a small, stable contract for registering custom application blocks;
 - a document format that renders the same whether you're editing or just displaying it.
 
-Blockspace is being built to close that gap, not to replace Notion.
+space2space is being built to close that gap, not to replace Notion.
 
 ## Contributing
 
@@ -80,4 +80,4 @@ Contributions, issues, and ideas are welcome. See [CONTRIBUTING.md](./CONTRIBUTI
 
 ## License
 
-MIT © Blockspace Contributors
+MIT © space2space Contributors
