@@ -93,6 +93,15 @@ The honest counter-side matters more than the table: BlockNote and Tiptap have y
 
 The actual pitch here is narrower: you can read and own the entire editor, it doesn't drag in ProseMirror, and persistence plus read-only rendering are first-class instead of something you bolt on yourself. That's a real but specific niche, not a claim to be more capable than BlockNote.
 
+## Using an AI coding assistant with space2space
+
+Two files ship with this package to give coding agents accurate context instead of letting them guess at the API:
+
+- **[`llms.txt`](./llms.txt)** -- a concise, tool-agnostic API reference (following the [llms.txt](https://llmstxt.org/) convention). Point any LLM-based tool at it, or paste it into a chat, for grounded answers instead of hallucinated API calls.
+- **[`skill/SKILL.md`](./skill/SKILL.md)** -- a [Claude Code Skill](https://code.claude.com/docs/en/capabilities/skills). Copy it to `.claude/skills/space2space/SKILL.md` in a project that uses this library, and Claude Code will automatically load it when working on space2space-related code -- including the non-obvious gotchas (contentEditable caret handling, IME composition, why every block needs a slash-menu entry) that this project has already learned the hard way, so an agent doesn't have to relearn them by reintroducing the same bugs.
+
+Both are included in the published npm package (`node_modules/space2space/llms.txt` and `node_modules/space2space/skill/SKILL.md`), so they travel with the dependency.
+
 ## Contributing
 
 Contributions, issues, and ideas are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.

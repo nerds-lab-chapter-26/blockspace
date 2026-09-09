@@ -1,0 +1,53 @@
+# space2space
+
+> Open-source, backend-agnostic block editor for React, inspired by Notion's block model. Built from scratch -- no ProseMirror, no Tiptap, no Lexical. Peer dependency: React only.
+
+## Install
+
+```bash
+npm install space2space
+```
+
+## Core API
+
+- `BlockEditor` -- editable block editor component. Props: `registry` (required), `documentId`, `persistence` (a `PersistenceAdapter`), `value`/`onChange` (controlled) or `defaultValue` (uncontrolled), `placeholder`, `autosaveDebounceMs`, `onSaveStatusChange`, `funMode` (opt-in, off by default). Exposes an imperative handle via `ref`: `insertBlock`, `updateBlock`, `removeBlock`, `moveBlock`, `convertBlock`, `focusBlock`, `undo`, `redo`, `getDocument`.
+- `BlockRenderer` -- read-only renderer. Props: `document`, `registry`. Mounts zero editor state -- safe for public pages, previews, SSR.
+- `createDefaultRegistry()` -- a `BlockRegistry` pre-populated with the 10 built-in blocks: `paragraph`, `heading`, `bulletedListItem`, `numberedListItem`, `todo`, `quote`, `callout`, `code`, `divider`, `image`.
+- `defineBlock(definition)` -- defines a custom block type. `createBlockRegistry(defs)` -- builds a registry from an array of definitions; throws on duplicate `type`.
+- `createMemoryAdapter()`, `createLocalStorageAdapter(options?)` -- `PersistenceAdapter` implementations (`load`/`save`/`delete`). Write your own for a REST API or database by implementing the same interface.
+- `documentToMarkdown(doc, registry?)` -- one-way, best-effort Markdown export. Not lossless (a callout's color or an image's alt text has no Markdown syntax and is dropped). The JSON document is the source of truth.
+- `createEmptyDocument()`, `isBlockDocument(value)` -- document helpers.
+
+## Data model
+
+A `BlockDocument` is `{ version: 1, blocks: Block[] }`. A `Block` is `{ id, type, props, content?: InlineContent[], children?: Block[] }`. `content` holds rich text as an array of `{ type: "text", text, marks: InlineMark[] }` runs; marks are `bold` | `italic` | `underline` | `strikethrough` | `code` | `link` (with `href`). Nesting is via `children`, used for indented list items.
+
+## Defining a custom block
+
+```ts
+import { defineBlock } from "space2space";
+
+const bookmarkBlock = defineBlock({
+  type: "bookmark",
+  defaultProps: { url: "", title: "" },
+  slashMenu: { label: "Bookmark", keywords: ["url", "link"] },
+  render: ({ props }) => /* read-only JSX */,
+  edit: ({ props, onChangeProps, ...standardHandlers }) => /* editable JSX */,
+});
+```
+
+`edit` components receive `onChangeContent`, `onChangeProps`, `onEnter`, `onBackspaceAtStart`, `onIndent`, `onOutdent`, `onArrowUpAtStart`, `onArrowDownAtEnd`, `onSelectionChange`, `onPaste`, `autoFocus`, `contentRef`. Set `hasContent: false` on the definition for blocks with no rich text (code/divider/image use their own `props` fields instead).
+
+## Known gotchas (do not reintroduce these -- each was a real shipped bug)
+
+1. **Never bind a contentEditable element's content to React state declaratively** (e.g. `dangerouslySetInnerHTML` recomputed every render). Reassigning `innerHTML` resets the browser's caret to position 0, so typed characters land in reverse order. Content must be synced imperatively in a layout effect, and skipped entirely when the change originated from the component's own `onChange` -- see `src/react/EditableRichText.tsx` for the pattern.
+2. **IME composition** (Chinese/Japanese/Korean, some Urdu/Arabic layouts) fires intermediate `input` events while the user is still composing. Don't sync those to state -- wait for `compositionend`, or you can interrupt the OS's composition UI mid-edit.
+3. **Every block type needs a slash-menu entry** (`slashMenu` or `slashMenuItems` in its definition), or it becomes impossible to insert via the UI. `paragraph` and `divider` shipped without one in an early version -- an easy thing to forget.
+4. A trailing non-text block (code/divider/image) as the *last* block in a document needs a way to add another block after it -- Enter doesn't split a codeless block the way it splits text. `BlockEditor` renders a click-below-content area for this.
+
+## Links
+
+- Full README: https://github.com/nerds-lab-chapter-26/blockspace#readme
+- Design rationale and roadmap: https://github.com/nerds-lab-chapter-26/blockspace/blob/main/PRD.md
+- Changelog: https://github.com/nerds-lab-chapter-26/blockspace/blob/main/CHANGELOG.md
+- Source: https://github.com/nerds-lab-chapter-26/blockspace

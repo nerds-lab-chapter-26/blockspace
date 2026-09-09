@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.4.1] - 2026-09-09
+
+### Added
+
+- `llms.txt` -- a concise, tool-agnostic API reference (following the [llms.txt](https://llmstxt.org/) convention) shipped with the package, for grounding any LLM-based coding tool instead of letting it guess at the API.
+- `skill/SKILL.md` -- a Claude Code Skill covering the API plus the non-obvious contentEditable/IME gotchas this project has already hit, so an agent working on space2space-related code doesn't reintroduce them. Copy it to `.claude/skills/space2space/SKILL.md` in a consuming project.
+
+No code changes.
+
 ## [0.4.0] - 2026-09-09
 
 ### Added
