@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.4.0] - 2026-09-09
+
+### Added
+
+- **`documentToMarkdown(doc, registry?)`.** A best-effort, one-way export of a `BlockDocument` to a Markdown string -- headings, lists, todos (`- [x]`), quotes, callouts, fenced code blocks, dividers, and images with captions. The JSON document stays the source of truth (Markdown can't represent everything a block can hold -- a callout's color or an image's alt text has no standard syntax and is dropped on export); this is for backup, static site generators, or interop with Markdown-based tools. Custom block types can define their own `toMarkdown` in `defineBlock`; without one, unknown types fall back to their plain text content.
+
 ## [0.3.0] - 2026-09-09
 
 ### Added

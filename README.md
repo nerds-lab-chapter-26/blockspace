@@ -10,7 +10,7 @@ You own the data. You choose the backend. You control the UI.
 
 Early but functional: a real block editor built from scratch (no ProseMirror/Lexical/Tiptap underneath), not just a schema. All 10 V1 block types work — paragraph, heading, bulleted/numbered lists, to-do, quote, callout, code, divider, image — with typing, Enter/Backspace/Tab keyboard behavior, a slash-command menu, inline formatting (bold/italic/underline/strikethrough/code/link), undo/redo, drag-to-reorder, and a standalone read-only renderer.
 
-Not yet done, roughly in order of what's next: polished default styling/theming, Markdown/HTML import and export, and database adapters beyond in-memory and localStorage (Postgres, Supabase, Mongo).
+Markdown export is available (`documentToMarkdown`), one-way and best-effort. Not yet done, roughly in order of what's next: Markdown import, polished default styling/theming, HTML import/export, and database adapters beyond in-memory and localStorage (Postgres, Supabase, Mongo).
 
 Track progress and design decisions in [PRD.md](./PRD.md).
 

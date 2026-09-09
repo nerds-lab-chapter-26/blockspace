@@ -48,6 +48,8 @@ export interface BlockDefinition<
   continuationType?: string;
   /** Returns whether the block should be treated as empty for Backspace/merge purposes. Defaults to checking `content` text length. */
   isEmpty?: (props: TProps, content: InlineContent[] | undefined) => boolean;
+  /** Custom Markdown serialization for `documentToMarkdown`. Without this, unknown block types fall back to plain text (or an HTML comment placeholder if they have no text content). */
+  toMarkdown?: (props: TProps, content: InlineContent[] | undefined) => string;
   slashMenu?: SlashMenuMeta;
   /** Use when one block type should offer several slash-menu entries with different default props (e.g. Heading 1/2/3). */
   slashMenuItems?: SlashMenuMeta[];
