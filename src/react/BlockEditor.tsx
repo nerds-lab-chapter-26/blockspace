@@ -107,6 +107,8 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
   const [activeSelection, setActiveSelection] = useState<{ blockId: BlockId; range: Range } | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ id: BlockId; position: "before" | "after" } | null>(null);
   const draggingId = useRef<BlockId | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<BlockId>>(new Set());
+  const selectionAnchor = useRef<BlockId | null>(null);
 
   // A document with zero blocks has nothing to click into. Always keep at least one empty
   // paragraph so the editor stays usable; this also self-heals if `value` is ever passed empty.
@@ -259,6 +261,70 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
     scheduleFocus(previous.id, mergedOffset);
   };
 
+  const handlePaste = (id: BlockId, caretOffset: number, lines: string[]) => {
+    const entry = findBlock(state.document, id);
+    if (!entry) return;
+    const def = registry.get(entry.block.type);
+    if (def?.hasContent === false) return;
+
+    const [before, after] = splitInline(entry.block.content ?? [], caretOffset);
+    const firstLine = lines[0] ?? "";
+    const firstLineRun: InlineContent[] = firstLine ? [{ type: "text", text: firstLine, marks: [] }] : [];
+
+    if (lines.length === 1) {
+      dispatch({
+        type: "update",
+        id,
+        patch: { content: mergeInline(mergeInline(before, firstLineRun), after) },
+      });
+      scheduleFocus(id, inlineToText(before).length + firstLine.length);
+      return;
+    }
+
+    dispatch({ type: "update", id, patch: { content: mergeInline(before, firstLineRun) } });
+
+    const paragraphDef = registry.get("paragraph");
+    const middleLines = lines.slice(1, -1);
+    const lastLine = lines[lines.length - 1] ?? "";
+
+    let afterId = id;
+    for (const line of middleLines) {
+      const block = createBlock("paragraph", paragraphDef);
+      block.content = line ? [{ type: "text", text: line, marks: [] }] : [];
+      dispatch({ type: "insert", block, location: { type: "after", id: afterId } });
+      afterId = block.id;
+    }
+
+    const lastBlock = createBlock("paragraph", paragraphDef);
+    const lastLineRun: InlineContent[] = lastLine ? [{ type: "text", text: lastLine, marks: [] }] : [];
+    lastBlock.content = mergeInline(lastLineRun, after);
+    dispatch({ type: "insert", block: lastBlock, location: { type: "after", id: afterId } });
+    scheduleFocus(lastBlock.id, lastLine.length);
+  };
+
+  const clearSelection = () => {
+    selectionAnchor.current = null;
+    setSelectedIds((prev) => (prev.size > 0 ? new Set() : prev));
+  };
+
+  const handleBlockHandleClick = (id: BlockId, shiftKey: boolean) => {
+    (document.activeElement as HTMLElement | null)?.blur();
+    const flatIds = flatten(state.document).map((f) => f.block.id);
+
+    if (shiftKey && selectionAnchor.current) {
+      const a = flatIds.indexOf(selectionAnchor.current);
+      const b = flatIds.indexOf(id);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        setSelectedIds(new Set(flatIds.slice(lo, hi + 1)));
+        return;
+      }
+    }
+
+    selectionAnchor.current = id;
+    setSelectedIds((prev) => (prev.size === 1 && prev.has(id) ? new Set() : new Set([id])));
+  };
+
   const handleArrowUp = (id: BlockId) => {
     const flat = flatten(state.document);
     const idx = flat.findIndex((f) => f.block.id === id);
@@ -335,6 +401,22 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
   );
 
   const handleEditorKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (selectedIds.size > 0) {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedIds.forEach((id) => dispatch({ type: "remove", id }));
+        clearSelection();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        clearSelection();
+        return;
+      }
+    }
+
     if (slashMenu) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -382,6 +464,7 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
       className={className}
       style={{ position: "relative", ...style }}
       onKeyDownCapture={handleEditorKeyDown}
+      onFocusCapture={clearSelection}
       data-blockspace-editor=""
     >
       {renderEditableBlocks(state.document.blocks, {
@@ -395,6 +478,7 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
         onOutdent: (id) => dispatch({ type: "outdent", id }),
         onArrowUp: handleArrowUp,
         onArrowDown: handleArrowDown,
+        onPaste: handlePaste,
         autoFocusId: null,
         onSelectionChange: (blockId, range) =>
           setActiveSelection(range ? { blockId, range } : null),
@@ -403,6 +487,8 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
         dropIndicator,
         setDropIndicator,
         onDrop: handleDrop,
+        selectedIds,
+        onHandleClick: handleBlockHandleClick,
       })}
 
       {/* Clicking below the last block adds a new paragraph -- the only way to get past a
@@ -463,6 +549,7 @@ interface RenderContext {
   onOutdent: (id: BlockId) => void;
   onArrowUp: (id: BlockId) => void;
   onArrowDown: (id: BlockId) => void;
+  onPaste: (id: BlockId, caretOffset: number, lines: string[]) => void;
   autoFocusId: BlockId | null;
   onSelectionChange: (id: BlockId, range: Range | null) => void;
   placeholder?: string;
@@ -470,6 +557,8 @@ interface RenderContext {
   dropIndicator: { id: BlockId; position: "before" | "after" } | null;
   setDropIndicator: (v: { id: BlockId; position: "before" | "after" } | null) => void;
   onDrop: (targetId: BlockId, position: "before" | "after") => void;
+  selectedIds: Set<BlockId>;
+  onHandleClick: (id: BlockId, shiftKey: boolean) => void;
 }
 
 function renderEditableBlocks(blocks: Block[], ctx: RenderContext) {
@@ -492,6 +581,7 @@ function renderEditableBlocks(blocks: Block[], ctx: RenderContext) {
       block.type === "numberedListItem" ? { ...block.props, listNumber: numberedCounter } : block.props;
 
     const showIndicator = ctx.dropIndicator?.id === block.id;
+    const isSelected = ctx.selectedIds.has(block.id);
 
     const children =
       block.children && block.children.length > 0 ? (
@@ -503,7 +593,13 @@ function renderEditableBlocks(blocks: Block[], ctx: RenderContext) {
         key={block.id}
         data-block-id={block.id}
         data-block-type={block.type}
-        style={{ position: "relative", padding: "2px 0" }}
+        data-block-selected={isSelected ? "" : undefined}
+        style={{
+          position: "relative",
+          padding: "2px 0",
+          background: isSelected ? "rgba(35,131,226,0.15)" : undefined,
+          borderRadius: isSelected ? 4 : undefined,
+        }}
         onDragOver={(e) => {
           if (!ctx.draggingId.current) return;
           e.preventDefault();
@@ -530,6 +626,7 @@ function renderEditableBlocks(blocks: Block[], ctx: RenderContext) {
               ctx.draggingId.current = null;
               ctx.setDropIndicator(null);
             }}
+            onClick={(e) => ctx.onHandleClick(block.id, e.shiftKey)}
             style={{
               cursor: "grab",
               userSelect: "none",
@@ -563,6 +660,7 @@ function renderEditableBlocks(blocks: Block[], ctx: RenderContext) {
               onArrowUpAtStart={() => ctx.onArrowUp(block.id)}
               onArrowDownAtEnd={() => ctx.onArrowDown(block.id)}
               onSelectionChange={(range) => ctx.onSelectionChange(block.id, range)}
+              onPaste={(caretOffset, lines) => ctx.onPaste(block.id, caretOffset, lines)}
             >
               {children}
             </Edit>

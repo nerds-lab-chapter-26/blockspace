@@ -55,6 +55,10 @@ function getEditableDivs(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll("[data-blockspace-editable]"));
 }
 
+function pasteText(el: HTMLElement, text: string) {
+  fireEvent.paste(el, { clipboardData: { getData: () => text } });
+}
+
 describe("BlockEditor", () => {
   it("always shows at least one editable paragraph, even starting from an empty document", () => {
     const registry = createDefaultRegistry();
@@ -315,5 +319,172 @@ describe("BlockEditor", () => {
 
     // the renderer must not mount any contentEditable surface
     expect(renderer.container.querySelector("[data-blockspace-editable]")).toBeNull();
+  });
+
+  describe("paste", () => {
+    it("pasting single-line text merges it into the current block at the caret", async () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(<BlockEditor registry={registry} />);
+      const el = getEditableDivs(container)[0]!;
+
+      typeInto(el, "helloworld");
+      await waitFor(() => expect(el.textContent).toBe("helloworld"));
+
+      const range = document.createRange();
+      range.setStart(el.firstChild!, 5);
+      range.collapse(true);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+
+      pasteText(el, " big ");
+
+      await waitFor(() => expect(el.textContent).toBe("hello big world"));
+    });
+
+    it("pasting multi-line text splits it into separate paragraphs", async () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(<BlockEditor registry={registry} />);
+      const el = getEditableDivs(container)[0]!;
+      placeCaretAtStart(el);
+
+      pasteText(el, "first\nsecond\nthird");
+
+      await waitFor(() => expect(getEditableDivs(container)).toHaveLength(3));
+      const divs = getEditableDivs(container);
+      expect(divs.map((d) => d.textContent)).toEqual(["first", "second", "third"]);
+    });
+
+    it("pasting multi-line text mid-block preserves the trailing text on the last new block", async () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(<BlockEditor registry={registry} />);
+      const el = getEditableDivs(container)[0]!;
+
+      typeInto(el, "startend");
+      await waitFor(() => expect(el.textContent).toBe("startend"));
+
+      const range = document.createRange();
+      range.setStart(el.firstChild!, 5); // caret between "start" and "end"
+      range.collapse(true);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(range);
+
+      pasteText(el, "A\nB");
+
+      await waitFor(() => expect(getEditableDivs(container)).toHaveLength(2));
+      const divs = getEditableDivs(container);
+      expect(divs[0]!.textContent).toBe("startA");
+      expect(divs[1]!.textContent).toBe("Bend");
+    });
+  });
+
+  describe("IME composition", () => {
+    it("does not sync to state while composing, and flushes once on compositionEnd", async () => {
+      const registry = createDefaultRegistry();
+      let latest: BlockDocument | null = null;
+      const { container } = render(
+        <BlockEditor registry={registry} onChange={(doc) => (latest = doc)} />
+      );
+      const el = getEditableDivs(container)[0]!;
+
+      fireEvent.compositionStart(el);
+      el.textContent = "میں"; // "میں" being composed
+      fireEvent.input(el);
+      // Mid-composition: must not have been synced to the document yet.
+      const midComposition = latest as BlockDocument | null;
+      expect(midComposition?.blocks[0]?.content?.[0]?.text ?? "").toBe("");
+
+      fireEvent.compositionEnd(el);
+      await waitFor(() => {
+        expect(latest?.blocks[0]?.content?.[0]?.text).toBe("میں");
+      });
+    });
+  });
+
+  describe("multi-block selection", () => {
+    function getHandles(container: HTMLElement): HTMLElement[] {
+      return Array.from(container.querySelectorAll('[aria-label^="Drag to reorder"]'));
+    }
+
+    it("clicking a block's handle selects it, and clicking again deselects it", () => {
+      const registry = createDefaultRegistry();
+      const ref = createRef<EditorHandle>();
+      const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+      act(() => {
+        ref.current!.insertBlock({ type: "paragraph" });
+      });
+
+      const handle = getHandles(container)[0]!;
+      fireEvent.click(handle);
+      expect(container.querySelector("[data-block-selected]")).not.toBeNull();
+
+      fireEvent.click(handle);
+      expect(container.querySelector("[data-block-selected]")).toBeNull();
+    });
+
+    it("shift-clicking a second handle selects the range between anchor and target", () => {
+      const registry = createDefaultRegistry();
+      const ref = createRef<EditorHandle>();
+      const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+      act(() => {
+        ref.current!.insertBlock({ type: "paragraph" });
+        ref.current!.insertBlock({ type: "paragraph" });
+      });
+
+      const handles = getHandles(container);
+      expect(handles).toHaveLength(3);
+      fireEvent.click(handles[0]!);
+      fireEvent.click(handles[2]!, { shiftKey: true });
+
+      expect(container.querySelectorAll("[data-block-selected]")).toHaveLength(3);
+    });
+
+    it("Backspace with blocks selected deletes all of them", () => {
+      const registry = createDefaultRegistry();
+      const ref = createRef<EditorHandle>();
+      const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+      act(() => {
+        ref.current!.insertBlock({ type: "paragraph" });
+        ref.current!.insertBlock({ type: "paragraph" });
+      });
+      expect(ref.current!.getDocument().blocks).toHaveLength(3);
+
+      const handles = getHandles(container);
+      fireEvent.click(handles[0]!);
+      fireEvent.click(handles[1]!, { shiftKey: true });
+      fireEvent.keyDown(container.querySelector("[data-blockspace-editor]")!, { key: "Backspace" });
+
+      expect(ref.current!.getDocument().blocks).toHaveLength(1);
+    });
+
+    it("Escape clears the selection without deleting anything", () => {
+      const registry = createDefaultRegistry();
+      const ref = createRef<EditorHandle>();
+      const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+      act(() => {
+        ref.current!.insertBlock({ type: "paragraph" });
+      });
+
+      const handle = getHandles(container)[0]!;
+      fireEvent.click(handle);
+      expect(container.querySelector("[data-block-selected]")).not.toBeNull();
+
+      fireEvent.keyDown(container.querySelector("[data-blockspace-editor]")!, { key: "Escape" });
+
+      expect(container.querySelector("[data-block-selected]")).toBeNull();
+      expect(ref.current!.getDocument().blocks).toHaveLength(2);
+    });
+
+    it("focusing a block's text clears the selection", async () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(<BlockEditor registry={registry} />);
+      const handle = getHandles(container)[0]!;
+      fireEvent.click(handle);
+      expect(container.querySelector("[data-block-selected]")).not.toBeNull();
+
+      const el = getEditableDivs(container)[0]!;
+      fireEvent.focusIn(el);
+
+      expect(container.querySelector("[data-block-selected]")).toBeNull();
+    });
   });
 });

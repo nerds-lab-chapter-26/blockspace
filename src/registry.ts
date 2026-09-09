@@ -22,6 +22,7 @@ export interface BlockEditProps<
   onArrowUpAtStart: () => void;
   onArrowDownAtEnd: () => void;
   onSelectionChange?: (range: Range | null) => void;
+  onPaste?: (caretOffset: number, lines: string[]) => void;
   autoFocus: boolean;
   placeholder?: string;
   contentRef: (el: HTMLElement | null) => void;

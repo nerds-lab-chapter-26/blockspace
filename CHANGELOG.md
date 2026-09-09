@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0] - 2026-09-09
+
+### Added
+
+- **Paste handling.** Pasting always inserts plain text (rich formatting/structure from clipboard HTML is out of scope for now) split on newlines: single-line pastes merge into the current block at the caret, multi-line pastes split into separate paragraph blocks, preserving whatever came before and after the caret in the original block.
+- **IME composition support.** Typing via an IME (Chinese/Japanese/Korean, some Urdu/Arabic layouts) previously synced every intermediate composition update to state, risking interference with the OS's composition UI. Input is now ignored while composing and flushed once, on `compositionend`.
+- **Multi-block selection.** Click a block's drag handle to select it, shift-click another handle to select the range between them, then Backspace/Delete removes every selected block at once. Escape clears the selection, and focusing any block's text also clears it. This is mouse-driven for now -- keyboard-only range selection across blocks is not yet supported.
+
 ## [0.1.2] - 2026-09-09
 
 ### Fixed

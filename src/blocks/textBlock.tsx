@@ -69,6 +69,7 @@ export function createTextBlock<TProps extends Record<string, unknown>>(
       onArrowUpAtStart,
       onArrowDownAtEnd,
       onSelectionChange,
+      onPaste,
       autoFocus,
       contentRef,
     }) => (
@@ -88,6 +89,7 @@ export function createTextBlock<TProps extends Record<string, unknown>>(
             onArrowUpAtStart={onArrowUpAtStart}
             onArrowDownAtEnd={onArrowDownAtEnd}
             onSelectionChange={(range) => onSelectionChange?.(range)}
+            onPaste={onPaste}
             placeholder={resolvePlaceholder(props)}
             autoFocus={autoFocus}
             contentRef={contentRef}

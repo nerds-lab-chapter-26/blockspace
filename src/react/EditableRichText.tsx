@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
+import type { CSSProperties, ClipboardEvent, CompositionEvent, FormEvent, KeyboardEvent } from "react";
 import type { InlineContent } from "../types.js";
 import { domToInline, inlineToText } from "../inline/serialize.js";
 import { inlineToHtml } from "../inline/html.js";
@@ -15,6 +15,10 @@ export interface EditableRichTextProps {
   onArrowUpAtStart?: () => void;
   onArrowDownAtEnd?: () => void;
   onSelectionChange?: (range: Range | null, container: HTMLElement) => void;
+  /** Called with the caret offset and the pasted text split into lines. Pasting always inserts
+   * plain text -- preserving rich formatting/structure from arbitrary clipboard HTML (Word, Google
+   * Docs, web pages) is out of scope for now; this keeps paste predictable and safe. */
+  onPaste?: (caretOffset: number, lines: string[]) => void;
   placeholder?: string;
   autoFocus?: boolean;
   as?: "div" | "h1" | "h2" | "h3" | "h4" | "blockquote";
@@ -39,6 +43,11 @@ export interface EditableRichTextProps {
  * (typing, execCommand formatting) are already reflected in the live DOM by the browser itself --
  * we just record what we saw so the effect can recognize it and do nothing. External changes
  * (initial mount, undo/redo, a controlled `value` reset) are the only ones that touch the DOM here.
+ *
+ * IME composition (Chinese/Japanese/Korean input, and some Urdu/Arabic layouts) fires intermediate
+ * "input" events while the user is still choosing characters via the OS's composition UI. Syncing
+ * those to React state -- and thus potentially re-rendering -- can interrupt the composition UI
+ * mid-edit. So input is ignored entirely while composing, and flushed once on compositionend.
  */
 export function EditableRichText({
   content,
@@ -50,6 +59,7 @@ export function EditableRichText({
   onArrowUpAtStart,
   onArrowDownAtEnd,
   onSelectionChange,
+  onPaste,
   placeholder,
   autoFocus,
   as = "div",
@@ -60,6 +70,7 @@ export function EditableRichText({
 }: EditableRichTextProps) {
   const elRef = useRef<HTMLElement | null>(null);
   const lastRenderedContent = useRef<InlineContent[] | null>(null);
+  const isComposing = useRef(false);
 
   const computeHtml = (): string =>
     plainText ? escapeForPlainText(inlineToText(content)) : inlineToHtml(content);
@@ -90,6 +101,7 @@ export function EditableRichText({
   };
 
   const handleInput = (e: FormEvent<HTMLElement>) => {
+    if (isComposing.current) return;
     const el = e.currentTarget;
     if (plainText) {
       const text = el.textContent ?? "";
@@ -101,6 +113,11 @@ export function EditableRichText({
     const next = domToInline(el);
     lastRenderedContent.current = next;
     onChange(next);
+  };
+
+  const handleCompositionEnd = (e: CompositionEvent<HTMLElement>) => {
+    isComposing.current = false;
+    handleInput({ currentTarget: e.currentTarget } as FormEvent<HTMLElement>);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
@@ -155,6 +172,16 @@ export function EditableRichText({
     }
   };
 
+  const handlePaste = (e: ClipboardEvent<HTMLElement>) => {
+    if (!onPaste) return;
+    const text = e.clipboardData.getData("text/plain");
+    if (!text) return;
+    e.preventDefault();
+    const el = elRef.current;
+    const offset = el ? getCaretOffset(el) ?? inlineToText(content).length : 0;
+    onPaste(offset, text.split(/\r\n|\r|\n/));
+  };
+
   const reportSelection = () => {
     if (!onSelectionChange || !elRef.current) return;
     const selection = window.getSelection();
@@ -180,6 +207,11 @@ export function EditableRichText({
       onKeyDown={handleKeyDown}
       onKeyUp={reportSelection}
       onMouseUp={handleMouseUp}
+      onPaste={handlePaste}
+      onCompositionStart={() => {
+        isComposing.current = true;
+      }}
+      onCompositionEnd={handleCompositionEnd}
       className={className}
       style={style}
       data-placeholder={placeholder}
