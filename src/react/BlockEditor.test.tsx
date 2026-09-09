@@ -189,6 +189,57 @@ describe("BlockEditor", () => {
     });
   });
 
+  it.each(["divider", "image"])(
+    "clicking below a trailing %s block also adds a new paragraph after it",
+    async (blockType) => {
+      const registry = createDefaultRegistry();
+      const ref = createRef<EditorHandle>();
+      const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+
+      act(() => {
+        ref.current!.convertBlock(ref.current!.getDocument().blocks[0]!.id, blockType);
+      });
+      await waitFor(() =>
+        expect(container.querySelector(`[data-block-type="${blockType}"]`)).not.toBeNull()
+      );
+
+      fireEvent.click(container.querySelector("[data-blockspace-trailing-area]")!);
+
+      await waitFor(() => {
+        const blocks = ref.current!.getDocument().blocks;
+        expect(blocks).toHaveLength(2);
+        expect(blocks[1]!.type).toBe("paragraph");
+      });
+    }
+  );
+
+  it("Ctrl+Enter inside a code block still exits it and adds a paragraph after (existing escape hatch)", async () => {
+    const registry = createDefaultRegistry();
+    const ref = createRef<EditorHandle>();
+    render(<BlockEditor ref={ref} registry={registry} />);
+
+    act(() => {
+      ref.current!.convertBlock(ref.current!.getDocument().blocks[0]!.id, "code", { code: "x" });
+    });
+    const textarea = await screen.findByLabelText("Code");
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => {
+      const blocks = ref.current!.getDocument().blocks;
+      expect(blocks).toHaveLength(2);
+      expect(blocks[1]!.type).toBe("paragraph");
+    });
+  });
+
+  it("clicking below an already-empty trailing paragraph focuses it instead of adding a duplicate", async () => {
+    const registry = createDefaultRegistry();
+    const { container } = render(<BlockEditor registry={registry} />);
+
+    fireEvent.click(container.querySelector("[data-blockspace-trailing-area]")!);
+
+    await waitFor(() => expect(getEditableDivs(container)).toHaveLength(1));
+  });
+
   it("loads an existing document from the persistence adapter on mount", async () => {
     const registry = createDefaultRegistry();
     const adapter = createMemoryAdapter();
