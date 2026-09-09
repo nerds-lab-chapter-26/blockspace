@@ -166,6 +166,29 @@ describe("BlockEditor", () => {
     await waitFor(() => expect(getEditableDivs(container)).toHaveLength(1));
   });
 
+  it("clicking below a trailing code block adds a new paragraph after it (regression)", async () => {
+    // A code block treats Enter as a plain newline, so when it's the last block in the document
+    // there was previously no way to get a new block after it without knowing the Ctrl+Enter
+    // shortcut. Clicking the trailing area below the last block must always work as an escape hatch.
+    const registry = createDefaultRegistry();
+    const ref = createRef<EditorHandle>();
+    const { container } = render(<BlockEditor ref={ref} registry={registry} />);
+
+    act(() => {
+      ref.current!.convertBlock(ref.current!.getDocument().blocks[0]!.id, "code", { code: "x" });
+    });
+    await waitFor(() => expect(container.querySelector('[data-block-type="code"]')).not.toBeNull());
+
+    const trailingArea = container.querySelector("[data-blockspace-trailing-area]")!;
+    fireEvent.click(trailingArea);
+
+    await waitFor(() => {
+      const blocks = ref.current!.getDocument().blocks;
+      expect(blocks).toHaveLength(2);
+      expect(blocks[1]!.type).toBe("paragraph");
+    });
+  });
+
   it("loads an existing document from the persistence adapter on mount", async () => {
     const registry = createDefaultRegistry();
     const adapter = createMemoryAdapter();

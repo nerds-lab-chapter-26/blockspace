@@ -405,6 +405,25 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
         onDrop: handleDrop,
       })}
 
+      {/* Clicking below the last block adds a new paragraph -- the only way to get past a
+          trailing non-text block (code/divider/image) where Enter doesn't create a sibling. */}
+      <div
+        data-blockspace-trailing-area=""
+        style={{ minHeight: 80, cursor: "text" }}
+        onClick={() => {
+          const blocks = state.document.blocks;
+          const last = blocks[blocks.length - 1];
+          if (last && last.type === "paragraph" && inlineToText(last.content ?? []).length === 0) {
+            focusNow(last.id, "start");
+            return;
+          }
+          const def = registry.get("paragraph");
+          const block = createBlock("paragraph", def);
+          dispatch({ type: "insert", block, location: { type: "root-end" } });
+          scheduleFocus(block.id, "start");
+        }}
+      />
+
       {slashMenu &&
         (() => {
           const el = contentRefs.current.get(slashMenu.blockId);

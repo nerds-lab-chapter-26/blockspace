@@ -1,6 +1,6 @@
 {
   "name": "space2space",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source, backend-agnostic building blocks for Notion-style editing in React.",
   "license": "MIT",
   "type": "module",

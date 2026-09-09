@@ -2,7 +2,14 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.1.1] - 2026-09-09
+
+### Fixed
+
+- A block with no text content (code, divider, image) sitting as the last block in a document had no way to add another block after it if it wasn't a code block being exited with Ctrl/Cmd+Enter. Clicking the empty space below the last block now always adds a new paragraph, matching the common editor convention of clicking below content to keep writing.
+- Arrow-key navigation (Up/Down) was never wired up for the code block, meaning keyboard users could get stuck in it.
+
+## [0.1.0] - 2026-09-09
 
 ### Added
 

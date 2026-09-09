@@ -30,7 +30,16 @@ export const codeBlock = defineBlock<string, CodeProps>({
       {props.code ? <CopyButton text={props.code} /> : null}
     </div>
   ),
-  edit: ({ props, onChangeProps, onEnter, onBackspaceAtStart, autoFocus, contentRef }) => {
+  edit: ({
+    props,
+    onChangeProps,
+    onEnter,
+    onBackspaceAtStart,
+    onArrowUpAtStart,
+    onArrowDownAtEnd,
+    autoFocus,
+    contentRef,
+  }) => {
     return (
       <div style={{ position: "relative" }}>
         <textarea
@@ -56,9 +65,15 @@ export const codeBlock = defineBlock<string, CodeProps>({
               const el = e.currentTarget;
               const next = props.code.slice(0, el.selectionStart) + "  " + props.code.slice(el.selectionEnd);
               onChangeProps({ code: next });
+            } else if (e.key === "ArrowUp" && e.currentTarget.selectionStart === 0) {
+              e.preventDefault();
+              onArrowUpAtStart();
+            } else if (e.key === "ArrowDown" && e.currentTarget.selectionEnd === props.code.length) {
+              e.preventDefault();
+              onArrowDownAtEnd();
             }
           }}
-          placeholder="Type or paste code. Ctrl/Cmd+Enter to leave the code block."
+          placeholder="Type or paste code. Ctrl/Cmd+Enter to leave the code block, or click below it."
           style={{ ...codeStyle, width: "100%", border: "none", outline: "none", resize: "vertical", minHeight: "3em" }}
         />
         {props.code ? <CopyButton text={props.code} /> : null}
