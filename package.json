@@ -1,5 +1,5 @@
 {
-  "name": "@2-nerds/blockspace",
+  "name": "blockspace",
   "version": "0.1.0",
   "description": "Open-source, backend-agnostic building blocks for Notion-style editing in React.",
   "license": "MIT",

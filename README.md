@@ -30,7 +30,7 @@ Opens a live playground with the editor and the read-only renderer side by side,
 ## Install
 
 ```bash
-npm install @2-nerds/blockspace
+npm install blockspace
 ```
 
 ## Quick example
@@ -41,7 +41,7 @@ import {
   BlockRenderer,
   createDefaultRegistry,
   createLocalStorageAdapter,
-} from "@2-nerds/blockspace";
+} from "blockspace";
 
 const registry = createDefaultRegistry();
 const adapter = createLocalStorageAdapter({ keyPrefix: "my-app:" });
