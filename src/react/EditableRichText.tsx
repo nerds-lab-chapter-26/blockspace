@@ -30,16 +30,15 @@ export interface EditableRichTextProps {
  *
  * This is the trickiest piece of building a block editor without an existing rich-text engine:
  * the browser owns the caret and native typing/IME behavior inside contentEditable, but React
- * wants to own rendering. If we let React re-render the element's children from `content` on
- * every keystroke, React's reconciler diffs against its own last-known output — not the DOM the
- * browser just mutated directly — and can reset or corrupt the caret.
+ * wants to own rendering. The DOM must NEVER be updated declaratively from `content` on every
+ * render -- reassigning innerHTML (even to text that's already there) resets the caret to the
+ * start of the element, which is indistinguishable from typing backwards one keystroke at a time.
  *
- * The fix: render via `dangerouslySetInnerHTML`, and make sure that after a keystroke we
- * originated ourselves, the HTML string we hand back on the next render is byte-identical to what
- * the browser already put in the DOM. React only touches the DOM when that string actually
- * differs, so an identical string is a no-op and the live caret survives untouched. External
- * changes (undo/redo, a controlled `value` reset) produce a different string on purpose, and are
- * allowed to overwrite the DOM.
+ * So content is synced imperatively, in a layout effect, and only when the new `content` reference
+ * didn't come from this component's own `onChange` in the first place. Self-originated changes
+ * (typing, execCommand formatting) are already reflected in the live DOM by the browser itself --
+ * we just record what we saw so the effect can recognize it and do nothing. External changes
+ * (initial mount, undo/redo, a controlled `value` reset) are the only ones that touch the DOM here.
  */
 export function EditableRichText({
   content,
@@ -60,15 +59,22 @@ export function EditableRichText({
   plainText,
 }: EditableRichTextProps) {
   const elRef = useRef<HTMLElement | null>(null);
-  const lastSelfContent = useRef<InlineContent[] | null>(null);
-  const lastHtml = useRef<string>("");
+  const lastRenderedContent = useRef<InlineContent[] | null>(null);
 
   const computeHtml = (): string =>
     plainText ? escapeForPlainText(inlineToText(content)) : inlineToHtml(content);
 
-  const isSelfOriginated = lastSelfContent.current === content;
-  const html = isSelfOriginated ? lastHtml.current : computeHtml();
-  if (!isSelfOriginated) lastHtml.current = html;
+  useLayoutEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    if (lastRenderedContent.current === content) {
+      // Our own change (typing, a formatting shortcut) -- the DOM already has it natively.
+      return;
+    }
+    el.innerHTML = computeHtml();
+    lastRenderedContent.current = content;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
 
   useLayoutEffect(() => {
     if (autoFocus && elRef.current) {
@@ -88,14 +94,12 @@ export function EditableRichText({
     if (plainText) {
       const text = el.textContent ?? "";
       const next: InlineContent[] = text ? [{ type: "text", text, marks: [] }] : [];
-      lastHtml.current = escapeForPlainText(text);
-      lastSelfContent.current = next;
+      lastRenderedContent.current = next;
       onChange(next);
       return;
     }
     const next = domToInline(el);
-    lastHtml.current = el.innerHTML;
-    lastSelfContent.current = next;
+    lastRenderedContent.current = next;
     onChange(next);
   };
 
@@ -180,7 +184,6 @@ export function EditableRichText({
       style={style}
       data-placeholder={placeholder}
       data-blockspace-editable=""
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

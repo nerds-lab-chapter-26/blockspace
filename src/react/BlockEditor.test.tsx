@@ -34,6 +34,23 @@ function placeCaretAtStart(el: HTMLElement) {
   selection.addRange(range);
 }
 
+/** Simulates one real keystroke: inserts a character at the current caret position (the way the
+ * browser natively does it), then fires the same "input" event React listens for. Unlike
+ * `typeInto`, this drives the component through a real render cycle after every character --
+ * which is exactly where a caret-preservation bug would surface. */
+function typeCharAtCaret(el: HTMLElement, char: string) {
+  const selection = window.getSelection()!;
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const textNode = document.createTextNode(char);
+  range.insertNode(textNode);
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  fireEvent.input(el);
+}
+
 function getEditableDivs(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll("[data-blockspace-editable]"));
 }
@@ -57,6 +74,24 @@ describe("BlockEditor", () => {
     await waitFor(() => {
       expect(latest?.blocks[0]?.content?.[0]?.text).toBe("hello world");
     });
+  });
+
+  it("typing several characters in sequence keeps them in order, not reversed (regression)", () => {
+    // Regression for a real bug: EditableRichText used to reset the contentEditable's innerHTML
+    // (via dangerouslySetInnerHTML) after every keystroke because React always saw the HTML string
+    // change between renders. Resetting innerHTML collapses the caret to the start of the element,
+    // so each new character landed before the previous one -- typing "abc" produced "cba".
+    const registry = createDefaultRegistry();
+    const { container } = render(<BlockEditor registry={registry} />);
+    const el = getEditableDivs(container)[0]!;
+
+    el.focus();
+    placeCaretAtStart(el);
+    for (const char of "abc") {
+      typeCharAtCaret(el, char);
+    }
+
+    expect(el.textContent).toBe("abc");
   });
 
   it("Enter splits the current block and creates a new paragraph after it", async () => {

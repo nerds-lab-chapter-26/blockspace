@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.2] - 2026-09-09
+
+### Fixed
+
+- Typing appeared to insert characters backwards (e.g. typing "abc" produced "cba"). `EditableRichText` was resetting the contentEditable's `innerHTML` after every keystroke, which resets the browser's caret to the start of the element -- so each new character landed in front of everything already typed. Content is now synced to the DOM imperatively and only for changes that didn't originate from the user's own typing (undo/redo, loading a document); self-originated changes are left alone since the browser already applied them correctly.
+
 ## [0.1.1] - 2026-09-09
 
 ### Fixed
