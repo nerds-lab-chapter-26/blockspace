@@ -76,6 +76,23 @@ A handful of open-source editors already exist. What's missing, consistently, is
 
 space2space is being built to close that gap, not to replace Notion.
 
+### vs. Tiptap and BlockNote, specifically
+
+Tiptap isn't actually a block editor -- it's a headless rich-text framework built on ProseMirror, with no native concept of "blocks." That's exactly why [BlockNote](https://www.blocknotejs.org/) exists, as a layer on top of Tiptap that adds blocks. So the fair comparison is against BlockNote, not raw Tiptap.
+
+| | BlockNote | space2space |
+| --- | --- | --- |
+| Editor engine | Tiptap + ProseMirror | None -- only React as a peer dependency |
+| Persistence | You wire it up yourself | Built in: adapters + save-status out of the box |
+| Read-only rendering | Still boots a full ProseMirror editor instance, just non-editable | Mounts zero editor machinery -- plain React walking JSON |
+| Bundle weight | Heavier (Tiptap + ProseMirror + extensions) | ~65 KB total, no engine weight |
+| Learning the internals | Requires understanding ProseMirror's NodeSpec/Schema/Transaction model | Plain arrays and functions, readable in an afternoon |
+| License/upsell risk | Tiptap Pro gates some extensions (collaboration, etc.) behind a paid tier | Fully MIT, nothing paid underneath |
+
+The honest counter-side matters more than the table: BlockNote and Tiptap have years of production hardening -- IME input, mobile browser quirks, tables, real collaborative editing, a mature ecosystem. space2space does not have that history yet. If you need to ship a serious product today, BlockNote is the safer choice.
+
+The actual pitch here is narrower: you can read and own the entire editor, it doesn't drag in ProseMirror, and persistence plus read-only rendering are first-class instead of something you bolt on yourself. That's a real but specific niche, not a claim to be more capable than BlockNote.
+
 ## Contributing
 
 Contributions, issues, and ideas are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
