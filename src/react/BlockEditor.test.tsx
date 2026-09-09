@@ -1,7 +1,7 @@
 import { createRef } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BlockEditor, type EditorHandle } from "./BlockEditor.js";
 import { BlockRenderer } from "./BlockRenderer.js";
 import { createDefaultRegistry } from "../blocks/index.js";
@@ -485,6 +485,46 @@ describe("BlockEditor", () => {
       fireEvent.focusIn(el);
 
       expect(container.querySelector("[data-block-selected]")).toBeNull();
+    });
+  });
+
+  describe("funMode", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("is off by default: no toast appears even after a long time passes", () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(<BlockEditor registry={registry} />);
+      vi.advanceTimersByTime(60 * 60 * 1000);
+      expect(container.querySelector('[role="status"]')).toBeNull();
+    });
+
+    it("shows a dismissible toast after funModeIntervalMs when enabled", () => {
+      const registry = createDefaultRegistry();
+      const { container } = render(
+        <BlockEditor registry={registry} funMode funModeIntervalMs={1000} />
+      );
+
+      expect(container.querySelector('[role="status"]')).toBeNull();
+      act(() => vi.advanceTimersByTime(1000));
+      expect(container.querySelector('[role="status"]')).not.toBeNull();
+
+      fireEvent.click(screen.getByLabelText("Dismiss"));
+      expect(container.querySelector('[role="status"]')).toBeNull();
+    });
+
+    it("auto-dismisses the toast after 10 seconds", () => {
+      // A large interval relative to the 10s dismiss window, so the repeating toast timer
+      // doesn't fire again and reset the dismiss countdown before we can observe it firing.
+      const registry = createDefaultRegistry();
+      const { container } = render(
+        <BlockEditor registry={registry} funMode funModeIntervalMs={60_000} />
+      );
+      act(() => vi.advanceTimersByTime(60_000));
+      expect(container.querySelector('[role="status"]')).not.toBeNull();
+
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(container.querySelector('[role="status"]')).toBeNull();
     });
   });
 });

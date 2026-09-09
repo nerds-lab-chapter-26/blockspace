@@ -64,6 +64,8 @@ export function PublicNotes({ document }) {
 
 `BlockEditor` also accepts `value`/`onChange` for fully controlled usage, and exposes an imperative handle (`insertBlock`, `updateBlock`, `removeBlock`, `moveBlock`, `convertBlock`, `focusBlock`, `undo`, `redo`) via `ref`. See PRD.md for the full API rationale and roadmap.
 
+There's also a `funMode` prop, off by default, for anyone who wants a dismissible joke toast during long writing sessions (`<BlockEditor funMode funModeIntervalMs={30 * 60 * 1000} />`). It's opt-in on purpose -- a library shouldn't surprise a consuming app's users unless the app explicitly asks for it.
+
 ## Why another block editor library
 
 A handful of open-source editors already exist. What's missing, consistently, is:

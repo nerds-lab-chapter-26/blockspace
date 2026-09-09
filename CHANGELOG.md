@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0] - 2026-09-09
+
+### Added
+
+- **`funMode` (opt-in, off by default).** A small console message with a joke prints once per page load regardless of this setting, since it has zero UI impact. When `funMode` is explicitly turned on, a dismissible corner toast with a joke appears every `funModeIntervalMs` (default 30 minutes), and an empty block's placeholder occasionally turns playful. Off by default and never enabled implicitly, in keeping with this library's own principle that the developer controls the UI -- a library has no business surprising a consuming app's users unless asked to.
+
 ## [0.2.0] - 2026-09-09
 
 ### Added

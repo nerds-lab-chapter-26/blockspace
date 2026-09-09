@@ -24,6 +24,9 @@ import type { PersistenceAdapter, SaveStatus } from "../persistence/types.js";
 import { createSaveController } from "../persistence/autosave.js";
 import { SlashMenu } from "./SlashMenu.js";
 import { FormatToolbar } from "./FormatToolbar.js";
+import { FunToast } from "./FunToast.js";
+import { printConsoleEasterEgg } from "../fun/consoleEasterEgg.js";
+import { FUN_PLACEHOLDERS, FUN_QUOTES, randomFrom } from "../fun/quotes.js";
 
 function generateId(): BlockId {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -71,6 +74,16 @@ export interface BlockEditorProps {
   placeholder?: string;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Purely cosmetic and off by default: after long continuous use, an empty block's placeholder
+   * occasionally turns playful, and a small dismissible toast with a joke appears every
+   * `funModeIntervalMs`. Never enabled unless you explicitly turn it on -- this project's own
+   * principle is that the developer controls the UI, so a library has no business popping up
+   * surprises in someone else's app without being asked.
+   */
+  funMode?: boolean;
+  /** How often the fun toast appears while `funMode` is on. Defaults to 30 minutes. */
+  funModeIntervalMs?: number;
 }
 
 export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function BlockEditor(
@@ -86,6 +99,8 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
     placeholder,
     className,
     style,
+    funMode = false,
+    funModeIntervalMs = 30 * 60 * 1000,
   },
   ref
 ) {
@@ -109,6 +124,28 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
   const draggingId = useRef<BlockId | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<BlockId>>(new Set());
   const selectionAnchor = useRef<BlockId | null>(null);
+  const [funQuote, setFunQuote] = useState<string | null>(null);
+  const [funPlaceholder, setFunPlaceholder] = useState<string | null>(null);
+
+  useEffect(() => {
+    printConsoleEasterEgg();
+  }, []);
+
+  useEffect(() => {
+    if (!funMode) return;
+    const toastTimer = setInterval(() => setFunQuote(randomFrom(FUN_QUOTES)), funModeIntervalMs);
+    const placeholderTimer = setInterval(() => setFunPlaceholder(randomFrom(FUN_PLACEHOLDERS)), 45_000);
+    return () => {
+      clearInterval(toastTimer);
+      clearInterval(placeholderTimer);
+    };
+  }, [funMode, funModeIntervalMs]);
+
+  useEffect(() => {
+    if (!funQuote) return;
+    const timer = setTimeout(() => setFunQuote(null), 10_000);
+    return () => clearTimeout(timer);
+  }, [funQuote]);
 
   // A document with zero blocks has nothing to click into. Always keep at least one empty
   // paragraph so the editor stays usable; this also self-heals if `value` is ever passed empty.
@@ -482,7 +519,7 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
         autoFocusId: null,
         onSelectionChange: (blockId, range) =>
           setActiveSelection(range ? { blockId, range } : null),
-        placeholder,
+        placeholder: funPlaceholder ?? placeholder,
         draggingId,
         dropIndicator,
         setDropIndicator,
@@ -534,6 +571,8 @@ export const BlockEditor = forwardRef<EditorHandle, BlockEditorProps>(function B
             <FormatToolbar top={rect.top} left={rect.left} onFormat={handleFormat} />
           );
         })()}
+
+      {funMode && funQuote && <FunToast message={funQuote} onDismiss={() => setFunQuote(null)} />}
     </div>
   );
 });
