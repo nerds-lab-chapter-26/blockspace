@@ -1,0 +1,190 @@
+import { useLayoutEffect, useRef } from "react";
+import type { CSSProperties, FormEvent, KeyboardEvent } from "react";
+import type { InlineContent } from "../types.js";
+import { domToInline, inlineToText } from "../inline/serialize.js";
+import { inlineToHtml } from "../inline/html.js";
+import { getCaretOffset, setCaretOffset } from "../dom/caret.js";
+
+export interface EditableRichTextProps {
+  content: InlineContent[];
+  onChange: (content: InlineContent[]) => void;
+  onEnter: (caretOffset: number) => void;
+  onBackspaceAtStart: () => void;
+  onIndent?: () => void;
+  onOutdent?: () => void;
+  onArrowUpAtStart?: () => void;
+  onArrowDownAtEnd?: () => void;
+  onSelectionChange?: (range: Range | null, container: HTMLElement) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  as?: "div" | "h1" | "h2" | "h3" | "h4" | "blockquote";
+  className?: string;
+  style?: CSSProperties;
+  contentRef?: (el: HTMLElement | null) => void;
+  /** Ignores marks entirely and treats content as one unmarked text run. Used by the code block. */
+  plainText?: boolean;
+}
+
+/**
+ * A single block's editable text surface.
+ *
+ * This is the trickiest piece of building a block editor without an existing rich-text engine:
+ * the browser owns the caret and native typing/IME behavior inside contentEditable, but React
+ * wants to own rendering. If we let React re-render the element's children from `content` on
+ * every keystroke, React's reconciler diffs against its own last-known output — not the DOM the
+ * browser just mutated directly — and can reset or corrupt the caret.
+ *
+ * The fix: render via `dangerouslySetInnerHTML`, and make sure that after a keystroke we
+ * originated ourselves, the HTML string we hand back on the next render is byte-identical to what
+ * the browser already put in the DOM. React only touches the DOM when that string actually
+ * differs, so an identical string is a no-op and the live caret survives untouched. External
+ * changes (undo/redo, a controlled `value` reset) produce a different string on purpose, and are
+ * allowed to overwrite the DOM.
+ */
+export function EditableRichText({
+  content,
+  onChange,
+  onEnter,
+  onBackspaceAtStart,
+  onIndent,
+  onOutdent,
+  onArrowUpAtStart,
+  onArrowDownAtEnd,
+  onSelectionChange,
+  placeholder,
+  autoFocus,
+  as = "div",
+  className,
+  style,
+  contentRef,
+  plainText,
+}: EditableRichTextProps) {
+  const elRef = useRef<HTMLElement | null>(null);
+  const lastSelfContent = useRef<InlineContent[] | null>(null);
+  const lastHtml = useRef<string>("");
+
+  const computeHtml = (): string =>
+    plainText ? escapeForPlainText(inlineToText(content)) : inlineToHtml(content);
+
+  const isSelfOriginated = lastSelfContent.current === content;
+  const html = isSelfOriginated ? lastHtml.current : computeHtml();
+  if (!isSelfOriginated) lastHtml.current = html;
+
+  useLayoutEffect(() => {
+    if (autoFocus && elRef.current) {
+      elRef.current.focus();
+      setCaretOffset(elRef.current, inlineToText(content).length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setRef = (el: HTMLElement | null) => {
+    elRef.current = el;
+    contentRef?.(el);
+  };
+
+  const handleInput = (e: FormEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    if (plainText) {
+      const text = el.textContent ?? "";
+      const next: InlineContent[] = text ? [{ type: "text", text, marks: [] }] : [];
+      lastHtml.current = escapeForPlainText(text);
+      lastSelfContent.current = next;
+      onChange(next);
+      return;
+    }
+    const next = domToInline(el);
+    lastHtml.current = el.innerHTML;
+    lastSelfContent.current = next;
+    onChange(next);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    const el = elRef.current;
+    if (!el) return;
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onEnter(getCaretOffset(el) ?? inlineToText(content).length);
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      if (getCaretOffset(el) === 0) {
+        e.preventDefault();
+        onBackspaceAtStart();
+      }
+      return;
+    }
+
+    if (e.key === "Tab" && (onIndent || onOutdent)) {
+      e.preventDefault();
+      if (e.shiftKey) onOutdent?.();
+      else onIndent?.();
+      return;
+    }
+
+    if (e.key === "ArrowUp" && onArrowUpAtStart && getCaretOffset(el) === 0) {
+      e.preventDefault();
+      onArrowUpAtStart();
+      return;
+    }
+
+    if (
+      e.key === "ArrowDown" &&
+      onArrowDownAtEnd &&
+      getCaretOffset(el) === inlineToText(content).length
+    ) {
+      e.preventDefault();
+      onArrowDownAtEnd();
+      return;
+    }
+
+    if (!plainText && (e.metaKey || e.ctrlKey)) {
+      const shortcut: Record<string, string> = { b: "bold", i: "italic", u: "underline" };
+      const command = shortcut[e.key.toLowerCase()];
+      if (command) {
+        e.preventDefault();
+        document.execCommand(command);
+        handleInput({ currentTarget: el } as FormEvent<HTMLElement>);
+      }
+    }
+  };
+
+  const reportSelection = () => {
+    if (!onSelectionChange || !elRef.current) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      onSelectionChange(null, elRef.current);
+      return;
+    }
+    onSelectionChange(selection.getRangeAt(0), elRef.current);
+  };
+
+  const handleMouseUp = () => reportSelection();
+
+  // Cast to a loosely-typed component: `as` is a small closed union of tag names, but JSX's
+  // per-tag event handler overloads make a truly polymorphic element too complex for tsc to unify.
+  const Tag = as as unknown as (props: Record<string, unknown>) => JSX.Element;
+
+  return (
+    <Tag
+      ref={setRef}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={handleInput}
+      onKeyDown={handleKeyDown}
+      onKeyUp={reportSelection}
+      onMouseUp={handleMouseUp}
+      className={className}
+      style={style}
+      data-placeholder={placeholder}
+      data-blockspace-editable=""
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function escapeForPlainText(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}

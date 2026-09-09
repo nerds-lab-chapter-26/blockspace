@@ -6,5 +6,9 @@ All notable changes to this project are documented here. Format loosely follows 
 
 ### Added
 
-- Core `BlockDocument` and `Block` types (schema version 1).
-- `createEmptyDocument` and `isBlockDocument` helpers.
+- Core `BlockDocument` and `Block` types (schema version 1), `createEmptyDocument` and `isBlockDocument`.
+- Block registry: `defineBlock`, `createBlockRegistry`, `createDefaultRegistry` with all 10 V1 block types (paragraph, heading, bulleted/numbered list item, to-do, quote, callout, code, divider, image).
+- `BlockEditor`: a from-scratch contentEditable-based block editor with typing, Enter/Backspace/Tab keyboard behavior, undo/redo, a slash-command menu, inline formatting (bold/italic/underline/strikethrough/code/link) via a selection toolbar, and drag-to-reorder.
+- `BlockRenderer`: standalone read-only renderer that mounts no editor state.
+- Persistence: `PersistenceAdapter` contract, `createMemoryAdapter`, `createLocalStorageAdapter`, and a debounced autosave controller with `idle`/`saving`/`saved`/`error` status.
+- A local Vite playground app (`/playground`) for manual testing.

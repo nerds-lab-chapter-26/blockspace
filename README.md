@@ -8,9 +8,24 @@ You own the data. You choose the backend. You control the UI.
 
 ## Status
 
-This project is in early, active development. The core document schema is the first thing being built — the React editor, block components, and slash-menu UI come next. If you're looking for something production-ready today, see [BlockNote](https://www.blocknotejs.org/) or [Plate](https://platejs.org/) in the meantime.
+Early but functional: a real block editor built from scratch (no ProseMirror/Lexical/Tiptap underneath), not just a schema. All 10 V1 block types work — paragraph, heading, bulleted/numbered lists, to-do, quote, callout, code, divider, image — with typing, Enter/Backspace/Tab keyboard behavior, a slash-command menu, inline formatting (bold/italic/underline/strikethrough/code/link), undo/redo, drag-to-reorder, and a standalone read-only renderer.
+
+Not yet done, roughly in order of what's next: polished default styling/theming, Markdown/HTML import and export, and database adapters beyond in-memory and localStorage (Postgres, Supabase, Mongo).
 
 Track progress and design decisions in [PRD.md](./PRD.md).
+
+## Try it locally
+
+```bash
+git clone https://github.com/nerds-lab-chapter-26/blockspace.git
+cd blockspace
+npm install
+cd playground
+npm install
+npm run dev
+```
+
+Opens a live playground with the editor and the read-only renderer side by side, backed by localStorage so your content survives a reload.
 
 ## Install
 
@@ -20,16 +35,34 @@ npm install blockspace
 
 ## Quick example
 
-```ts
-import { createEmptyDocument, isBlockDocument } from "blockspace";
+```tsx
+import {
+  BlockEditor,
+  BlockRenderer,
+  createDefaultRegistry,
+  createLocalStorageAdapter,
+} from "blockspace";
 
-const doc = createEmptyDocument();
-// { version: 1, blocks: [] }
+const registry = createDefaultRegistry();
+const adapter = createLocalStorageAdapter({ keyPrefix: "my-app:" });
 
-isBlockDocument(doc); // true
+export function Notes() {
+  return (
+    <BlockEditor
+      documentId="my-notes"
+      registry={registry}
+      persistence={adapter}
+      placeholder="Type '/' for commands"
+    />
+  );
+}
+
+export function PublicNotes({ document }) {
+  return <BlockRenderer document={document} registry={registry} />;
+}
 ```
 
-The React editor and renderer components (`BlockEditor`, `BlockRenderer`) are not built yet — right now the package exports the core document types and a couple of small helpers. See the roadmap in PRD.md for what's coming.
+`BlockEditor` also accepts `value`/`onChange` for fully controlled usage, and exposes an imperative handle (`insertBlock`, `updateBlock`, `removeBlock`, `moveBlock`, `convertBlock`, `focusBlock`, `undo`, `redo`) via `ref`. See PRD.md for the full API rationale and roadmap.
 
 ## Why another block editor library
 
