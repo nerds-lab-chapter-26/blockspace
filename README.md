@@ -1,5 +1,10 @@
 # space2space
 
+[![npm version](https://img.shields.io/npm/v/space2space.svg)](https://www.npmjs.com/package/space2space)
+[![npm downloads](https://img.shields.io/npm/dm/space2space.svg)](https://www.npmjs.com/package/space2space)
+[![CI](https://github.com/nerds-lab-chapter-26/blockspace/actions/workflows/ci.yml/badge.svg)](https://github.com/nerds-lab-chapter-26/blockspace/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/npm/l/space2space.svg)](./LICENSE)
+
 Open-source, backend-agnostic building blocks for Notion-style editing in React.
 
 Most block editors either lock you into a hosted API, or hand you a raw rich-text engine and leave you to build block identity, persistence, and custom blocks yourself. space2space is the missing layer in between: a typed block schema, editing commands, and a persistence contract you can wire up to whatever backend you already use — your own database, a REST API, or nothing at all.
