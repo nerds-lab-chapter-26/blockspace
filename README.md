@@ -6,6 +6,11 @@ Most block editors either lock you into a hosted API, or hand you a raw rich-tex
 
 You own the data. You choose the backend. You control the UI.
 
+**Free and local-first by default, flexible by design.** No API keys, no monthly fees, no usage-based billing, no cloud dependency -- install it and start writing with the built-in localStorage adapter, and your data never leaves the browser unless you decide it should. Nothing here is hardcoded:
+
+- **Swap the backend anytime.** `PersistenceAdapter` is a 3-method contract (`load`/`save`/`delete`). Start with localStorage, move to Postgres, MongoDB, or your own REST API later by implementing those three methods -- the editor doesn't know or care which one you're using.
+- **Add or remove blocks anytime.** Register your own block types with `defineBlock`, or build a registry with only the built-in blocks you actually want (`createBlockRegistry(defaultBlocks.filter(...))`) -- nothing is baked in.
+
 ## Status
 
 Early but functional: a real block editor built from scratch (no ProseMirror/Lexical/Tiptap underneath), not just a schema. All 10 V1 block types work — paragraph, heading, bulleted/numbered lists, to-do, quote, callout, code, divider, image — with typing, Enter/Backspace/Tab keyboard behavior, a slash-command menu, inline formatting (bold/italic/underline/strikethrough/code/link), undo/redo, drag-to-reorder, and a standalone read-only renderer.
