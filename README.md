@@ -7,6 +7,8 @@
 
 Open-source, backend-agnostic building blocks for Notion-style editing in React.
 
+![Typing a heading and a to-do list in space2space, with the read-only renderer updating live next to it](./assets/demo.gif)
+
 Most block editors either lock you into a hosted API, or hand you a raw rich-text engine and leave you to build block identity, persistence, and custom blocks yourself. space2space is the missing layer in between: a typed block schema, editing commands, and a persistence contract you can wire up to whatever backend you already use — your own database, a REST API, or nothing at all.
 
 You own the data. You choose the backend. You control the UI.
