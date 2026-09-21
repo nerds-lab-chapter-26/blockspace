@@ -14,7 +14,8 @@ space2space is a Notion-style block editor for React, built from scratch -- no P
 - `createDefaultRegistry()` -- registry with the 10 built-in blocks (paragraph, heading, bulletedListItem, numberedListItem, todo, quote, callout, code, divider, image).
 - `defineBlock(definition)` / `createBlockRegistry(defs)` -- register custom block types.
 - `createMemoryAdapter()` / `createLocalStorageAdapter(options?)` -- `PersistenceAdapter` (`load`/`save`/`delete`) implementations.
-- `documentToMarkdown(doc, registry?)` -- one-way, best-effort Markdown export (not lossless).
+- `documentToMarkdown(doc, registry?)` -- best-effort Markdown export (not lossless).
+- `markdownToDocument(markdown)` -- best-effort Markdown import; returns a `BlockDocument` with fresh ids. Use it as `defaultValue` or `value` on `BlockEditor`. Unsupported syntax degrades to paragraphs instead of throwing, and unsafe URL schemes are stripped.
 
 ## Data model
 
@@ -37,12 +38,14 @@ Checklist for a new block:
 2. **IME composition** (Chinese/Japanese/Korean, some Urdu/Arabic layouts) fires intermediate `input` events while composing. Do not sync those to React state -- it can interrupt the OS's composition UI. Wait for `compositionend` (see `isComposing` ref in `EditableRichText.tsx`).
 3. **Paste is plain-text only, intentionally.** Multi-line pastes split into separate paragraph blocks; rich HTML from clipboard (Word, Google Docs) is not preserved. Don't "fix" this into rendering pasted HTML directly without discussing scope -- it was a deliberate v1 decision for safety and predictability.
 4. **A trailing non-text block (code/divider/image) as the last block in a document has no `Enter`-splits-a-block escape hatch**, since Enter in a code block just inserts a newline. `BlockEditor` renders a click-below-content trailing area as the fallback -- don't remove it without providing another way to add a block after such a block.
-5. **Test DOM cleanup**: `@testing-library/react`'s auto-cleanup needs a global `afterEach`, which this project's Vitest config doesn't provide (no `globals: true`). `src/test/setup.ts` calls `cleanup()` explicitly -- if a new test file bypasses that setup file, tests will leak DOM across cases in the same file.
+5. **Markdown import must keep URLs safe, and must stay linear-time.** `BlockRenderer` emits link hrefs and image srcs verbatim, so `sanitizeUrl` in `src/markdown/inline.ts` (http/https/mailto/tel/relative only; raster `data:` for images) is the only thing between untrusted Markdown and a `javascript:` link. Never bypass it, and if you add another importer, do the same. Emphasis resolution there follows the CommonMark delimiter-stack algorithm and applies marks in one sweep at the end; an earlier version stamped marks onto every node inside each pair and took ~111 seconds on 3,000 nested `*a ...a*` pairs (now ~60 ms even at 20,000). The `pathological input` tests guard this -- keep them passing.
+6. **Test DOM cleanup**: `@testing-library/react`'s auto-cleanup needs a global `afterEach`, which this project's Vitest config doesn't provide (no `globals: true`). `src/test/setup.ts` calls `cleanup()` explicitly -- if a new test file bypasses that setup file, tests will leak DOM across cases in the same file.
 
 ## Common tasks
 
 - **New persistence backend** (e.g. a REST API): implement `PersistenceAdapter` (`load(id)`, `save(id, doc)`, optional `delete(id)`) -- no need to touch the editor itself.
 - **Markdown export for a custom block**: add `toMarkdown(props, content)` to its `defineBlock` call, or it falls back to plain text (or an HTML comment placeholder if it has no text content).
+- **Changing Markdown import**: block-level parsing is `src/markdown/fromMarkdown.ts`, inline parsing is `src/markdown/inline.ts`. Add a case to `fromMarkdown.test.ts`, and keep the round-trip test (`documentToMarkdown` then `markdownToDocument` reproduces every built-in block) green. The block model has no soft line break, so a paragraph's line breaks collapse to spaces by design.
 - **Verifying a fix to typing/caret behavior**: write a test that fires `input` events one character at a time via separate `fireEvent.input` calls (see `typeCharAtCaret` in `src/react/BlockEditor.test.tsx`), not one that sets the final string in a single call -- the latter will not exercise the render cycle between keystrokes where caret bugs live.
 
 ## Where things live
@@ -54,3 +57,4 @@ Checklist for a new block:
 - `src/state/` -- the pure tree/reducer logic, framework-agnostic and heavily unit tested.
 - `src/persistence/` -- adapters and the autosave controller.
 - `src/markdown/toMarkdown.ts` -- Markdown export.
+- `src/markdown/fromMarkdown.ts`, `src/markdown/inline.ts` -- Markdown import (block parser and inline/emphasis parser).

@@ -22,7 +22,7 @@ You own the data. You choose the backend. You control the UI.
 
 Early but functional: a real block editor built from scratch (no ProseMirror/Lexical/Tiptap underneath), not just a schema. All 10 V1 block types work — paragraph, heading, bulleted/numbered lists, to-do, quote, callout, code, divider, image — with typing, Enter/Backspace/Tab keyboard behavior, a slash-command menu, inline formatting (bold/italic/underline/strikethrough/code/link), undo/redo, drag-to-reorder, and a standalone read-only renderer.
 
-Markdown export is available (`documentToMarkdown`), one-way and best-effort. Not yet done, roughly in order of what's next: Markdown import, polished default styling/theming, HTML import/export, and database adapters beyond in-memory and localStorage (Postgres, Supabase, Mongo).
+Markdown import (`markdownToDocument`) and export (`documentToMarkdown`) are both available -- see [Markdown import and export](#markdown-import-and-export). Not yet done, roughly in order of what's next: polished default styling/theming, HTML import/export, and database adapters beyond in-memory and localStorage (Postgres, Supabase, Mongo).
 
 Track progress and design decisions in [PRD.md](./PRD.md).
 
@@ -37,7 +37,7 @@ npm install
 npm run dev
 ```
 
-Opens a live playground with the editor and the read-only renderer side by side, backed by localStorage so your content survives a reload.
+Opens a live playground with the editor and the read-only renderer side by side, backed by localStorage so your content survives a reload. Expand "Markdown import / export" at the top to paste Markdown in or export the current document.
 
 ## Install
 
@@ -77,6 +77,44 @@ export function PublicNotes({ document }) {
 `BlockEditor` also accepts `value`/`onChange` for fully controlled usage, and exposes an imperative handle (`insertBlock`, `updateBlock`, `removeBlock`, `moveBlock`, `convertBlock`, `focusBlock`, `undo`, `redo`) via `ref`. See PRD.md for the full API rationale and roadmap.
 
 There's also a `funMode` prop, off by default, for anyone who wants a dismissible joke toast during long writing sessions (`<BlockEditor funMode funModeIntervalMs={30 * 60 * 1000} />`). It's opt-in on purpose -- a library shouldn't surprise a consuming app's users unless the app explicitly asks for it.
+
+## Markdown import and export
+
+Bring existing Markdown in, and get Markdown back out. Both are plain functions with no extra dependencies.
+
+```tsx
+import { BlockEditor, createDefaultRegistry, documentToMarkdown, markdownToDocument } from "space2space";
+
+const registry = createDefaultRegistry();
+
+// .md string -> BlockDocument
+const doc = markdownToDocument(await file.text());
+<BlockEditor registry={registry} defaultValue={doc} />;
+
+// BlockDocument -> .md string
+const markdown = documentToMarkdown(editorRef.current.getDocument());
+```
+
+`markdownToDocument` understands:
+
+- headings (`#` and underlined `===` / `---`; levels 4-6 become level 3, the deepest the editor has);
+- paragraphs, with wrapped lines joined into one block;
+- bulleted, numbered, and task (`- [x]`) lists, nested by indentation;
+- blockquotes -- a quote that starts with an emoji becomes a callout, which is exactly what export writes;
+- fenced code with its language, and horizontal rules;
+- images (an italic line right after an image becomes its caption);
+- inline **bold**, *italic*, ~~strikethrough~~, `code`, links, and `<u>underline</u>`.
+
+It is best-effort, not lossless. Anything it doesn't know degrades instead of failing:
+
+- tables become one paragraph per row (`a | b`), HTML comments and YAML front matter are dropped, and an image in the middle of a sentence keeps only its alt text;
+- line breaks inside a paragraph collapse to spaces, because the block model has no soft line break;
+- numbered lists keep their order but not their start number;
+- every imported block gets a fresh id.
+
+It is also safe to feed untrusted Markdown: links and images with unsafe schemes (`javascript:`, `vbscript:`, non-image `data:`, `file:`) are stripped on import, so `BlockRenderer` never receives one.
+
+Export is the reverse and shares the same limits. It does not escape Markdown punctuation in plain text, so text you typed literally as `*star*` comes back as italics if you re-import it. Content the editor formats itself round-trips, apart from what Markdown has no syntax for (such as a callout's custom color).
 
 ## Why another block editor library
 

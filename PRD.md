@@ -82,7 +82,7 @@ The product must reduce this repeated work without forcing developers to use a p
 - Real-time collaboration through optional adapters such as Yjs or Liveblocks.
 - Comments, mentions, presence, and document history.
 - Notion-style database views.
-- Import/export for Markdown and HTML.
+- Import/export for Markdown and HTML. (Markdown import and export shipped as best-effort in 0.5.0 and 0.4.0; HTML remains.)
 - Framework adapters beyond React.
 - Optional AI commands that do not lock users into one model provider.
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0] - 2026-09-21
+
+### Added
+
+- **`markdownToDocument(markdown)`.** Best-effort Markdown import, the counterpart to `documentToMarkdown`. A hand-written parser with no new dependencies. It handles ATX and setext headings (levels 4-6 clamp to 3, the deepest the editor has), paragraphs (wrapped lines join into one block), bulleted / numbered / task lists nested by indentation, blockquotes (an emoji-led quote becomes a callout, matching what export writes), fenced code with its language, horizontal rules, images (an italic line directly after an image becomes its caption), and inline bold / italic / strikethrough / `code` / links / `<u>`. Inline emphasis follows the CommonMark delimiter rules, so nesting such as `*a **b** c*` and intraword underscores behave as expected.
+- Anything unsupported degrades instead of throwing: tables become one paragraph per row, HTML comments and YAML front matter are dropped, an image inside a sentence keeps only its alt text, and line breaks inside a paragraph collapse to spaces (the block model has no soft line break). Numbered lists keep their order but not their start number. Every imported block gets a fresh id.
+- **Safe for untrusted input.** Links and images with unsafe schemes (`javascript:`, `vbscript:`, `file:`, non-image `data:`, including tab/control-character obfuscation) are dropped on import, because `BlockRenderer` emits hrefs and srcs verbatim.
+- Linear-time on adversarial input (100,000 unmatched delimiters, 20,000 nested emphasis pairs, and similar parse in well under a second).
+- The playground gained a "Markdown import / export" panel for trying it by hand.
+
+### Changed
+
+- Block id generation moved to a shared internal helper (`src/id.ts`); no behavior change.
+
 ## [0.4.1] - 2026-09-09
 
 ### Added

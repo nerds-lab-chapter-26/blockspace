@@ -21,6 +21,7 @@ export type {
 export { defineBlock, createBlockRegistry, buildSlashMenuEntries, isBlockEmpty } from "./registry.js";
 
 export { documentToMarkdown } from "./markdown/toMarkdown.js";
+export { markdownToDocument } from "./markdown/fromMarkdown.js";
 
 export type { PersistenceAdapter, SaveStatus } from "./persistence/types.js";
 export { createMemoryAdapter } from "./persistence/memoryAdapter.js";

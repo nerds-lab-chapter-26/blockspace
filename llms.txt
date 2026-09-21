@@ -15,7 +15,8 @@ npm install space2space
 - `createDefaultRegistry()` -- a `BlockRegistry` pre-populated with the 10 built-in blocks: `paragraph`, `heading`, `bulletedListItem`, `numberedListItem`, `todo`, `quote`, `callout`, `code`, `divider`, `image`.
 - `defineBlock(definition)` -- defines a custom block type. `createBlockRegistry(defs)` -- builds a registry from an array of definitions; throws on duplicate `type`.
 - `createMemoryAdapter()`, `createLocalStorageAdapter(options?)` -- `PersistenceAdapter` implementations (`load`/`save`/`delete`). Write your own for a REST API or database by implementing the same interface.
-- `documentToMarkdown(doc, registry?)` -- one-way, best-effort Markdown export. Not lossless (a callout's color or an image's alt text has no Markdown syntax and is dropped). The JSON document is the source of truth.
+- `documentToMarkdown(doc, registry?)` -- best-effort Markdown export. Not lossless (a callout's color has no Markdown syntax and is dropped). The JSON document is the source of truth.
+- `markdownToDocument(markdown)` -- best-effort Markdown import, returns a `BlockDocument` with fresh ids (use it as `defaultValue`/`value`). Handles headings (levels 4-6 clamp to 3), paragraphs, bullet/numbered/task lists nested by indentation, blockquotes (an emoji-led quote becomes a callout), fenced code, dividers, images (a following italic line becomes the caption), and inline bold/italic/strikethrough/code/links/`<u>`. Unknown syntax degrades to paragraphs rather than throwing (tables become one paragraph per row). URLs with unsafe schemes (`javascript:`, non-image `data:`, ...) are stripped, so untrusted Markdown is safe to import.
 - `createEmptyDocument()`, `isBlockDocument(value)` -- document helpers.
 
 ## Data model
@@ -44,6 +45,7 @@ const bookmarkBlock = defineBlock({
 2. **IME composition** (Chinese/Japanese/Korean, some Urdu/Arabic layouts) fires intermediate `input` events while the user is still composing. Don't sync those to state -- wait for `compositionend`, or you can interrupt the OS's composition UI mid-edit.
 3. **Every block type needs a slash-menu entry** (`slashMenu` or `slashMenuItems` in its definition), or it becomes impossible to insert via the UI. `paragraph` and `divider` shipped without one in an early version -- an easy thing to forget.
 4. A trailing non-text block (code/divider/image) as the *last* block in a document needs a way to add another block after it -- Enter doesn't split a codeless block the way it splits text. `BlockEditor` renders a click-below-content area for this.
+5. **`BlockRenderer` puts link hrefs and image srcs into the DOM verbatim.** Any code that builds a `BlockDocument` from untrusted input (an importer, a paste handler) must drop `javascript:`/`vbscript:`/non-image `data:` URLs first. `markdownToDocument` already does; a new importer has to do the same.
 
 ## Links
 

@@ -27,11 +27,7 @@ import { FormatToolbar } from "./FormatToolbar.js";
 import { FunToast } from "./FunToast.js";
 import { printConsoleEasterEgg } from "../fun/consoleEasterEgg.js";
 import { FUN_PLACEHOLDERS, FUN_QUOTES, randomFrom } from "../fun/quotes.js";
-
-function generateId(): BlockId {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `blk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
+import { generateBlockId } from "../id.js";
 
 function createBlock(
   type: string,
@@ -39,7 +35,7 @@ function createBlock(
   props: Record<string, unknown> = {}
 ): Block {
   return {
-    id: generateId(),
+    id: generateBlockId(),
     type,
     props: { ...(def?.defaultProps ?? {}), ...props },
     content: def?.hasContent === false ? undefined : [],

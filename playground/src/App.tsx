@@ -5,6 +5,8 @@ import {
   createDefaultRegistry,
   createLocalStorageAdapter,
   createEmptyDocument,
+  documentToMarkdown,
+  markdownToDocument,
   type BlockDocument,
   type EditorHandle,
   type SaveStatus,
@@ -39,6 +41,30 @@ const SAMPLE: BlockDocument = {
   ],
 };
 
+const SAMPLE_MARKDOWN = `# Imported from Markdown
+
+Paste any Markdown here and press **Import**. It supports *italic*, ~~strikethrough~~, \`inline code\`, and [links](https://example.com).
+
+- [x] Headings, lists, and task lists
+- [ ] Nested items
+  - like this one
+  - and this one
+
+1. Numbered lists
+2. Keep their order
+
+> 💡 A quote that starts with an emoji becomes a callout
+
+\`\`\`js
+console.log("fenced code keeps its language");
+\`\`\`
+
+---
+
+![A placeholder](https://placehold.co/600x120)
+*Images take an italic caption*
+`;
+
 export function App() {
   const registry = useMemo(() => createDefaultRegistry(), []);
   const adapter = useMemo(() => createLocalStorageAdapter({ keyPrefix: "blockspace-playground:" }), []);
@@ -46,6 +72,7 @@ export function App() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [showRenderer, setShowRenderer] = useState(true);
   const [liveDoc, setLiveDoc] = useState<BlockDocument>(createEmptyDocument());
+  const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 1100, margin: "0 auto", padding: "24px 20px" }}>
@@ -72,6 +99,30 @@ export function App() {
           </label>
         </div>
       </header>
+
+      <details style={{ marginBottom: 16, fontSize: "0.85em" }}>
+        <summary style={{ cursor: "pointer" }}>Markdown import / export</summary>
+        <textarea
+          data-testid="markdown-input"
+          value={markdown}
+          onChange={(e) => setMarkdown(e.target.value)}
+          rows={12}
+          style={{ width: "100%", boxSizing: "border-box", marginTop: 8, fontFamily: "ui-monospace, monospace" }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button
+            data-testid="markdown-import"
+            onClick={() => {
+              adapter.save("playground-doc", markdownToDocument(markdown)).then(() => window.location.reload());
+            }}
+          >
+            Import (replaces the document)
+          </button>
+          <button data-testid="markdown-export" onClick={() => setMarkdown(documentToMarkdown(liveDoc))}>
+            Export current document
+          </button>
+        </div>
+      </details>
 
       <div style={{ display: "flex", gap: 24 }}>
         <div style={{ flex: 1, minWidth: 0, border: "1px solid #eee", borderRadius: 8, padding: 20 }}>
